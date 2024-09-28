@@ -23,3 +23,4 @@ rootProject.name = "xalbum"
 include ':app'
 include ':album-data'
 include ':album-ui'
+include ':mvi'
