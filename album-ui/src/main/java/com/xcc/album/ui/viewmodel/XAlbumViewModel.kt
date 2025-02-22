@@ -18,6 +18,7 @@ data class XAlbumState(
     val currentFolder: Folder? = null,
     val selectedItems: Set<MediaData> = emptySet(),
     val isLoading: Boolean = false,
+    val isDropdownExpanded: Boolean = false,
     val error: String? = null
 ): MviUiState
 
@@ -30,6 +31,7 @@ sealed class XAlbumIntent: MviUiIntent {
     data class LoadMedia(val context: Context) : XAlbumIntent()
     data class SelectMedia(val media: MediaData) : XAlbumIntent()
     data class SwitchFolder(val folder: Folder) : XAlbumIntent()
+    data class ToggleDropdown(val expanded: Boolean) : XAlbumIntent()
 }
 
 class XAlbumViewModel: BaseMviViewModel<XAlbumState, XAlbumIntent, XAlbumEvent>(XAlbumState()) {
@@ -39,6 +41,7 @@ class XAlbumViewModel: BaseMviViewModel<XAlbumState, XAlbumIntent, XAlbumEvent>(
             is XAlbumIntent.LoadMedia -> load(uiIntent.context)
             is XAlbumIntent.SelectMedia -> selectMedia(uiIntent.media)
             is XAlbumIntent.SwitchFolder -> switchFolder(uiIntent.folder)
+            is XAlbumIntent.ToggleDropdown -> toggleDropdown(uiIntent.expanded)
         }
     }
 
@@ -82,6 +85,10 @@ class XAlbumViewModel: BaseMviViewModel<XAlbumState, XAlbumIntent, XAlbumEvent>(
 
     private fun switchFolder(folder: Folder) {
         setState { copy(currentFolder = folder) }
+    }
+
+    private fun toggleDropdown(expanded: Boolean) {
+        setState { copy(isDropdownExpanded = expanded) }
     }
 
 }

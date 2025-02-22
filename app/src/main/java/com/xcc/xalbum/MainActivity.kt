@@ -1,23 +1,23 @@
 package com.xcc.xalbum
 
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.core.content.ContextCompat
+import androidx.compose.runtime.mutableStateListOf
+import com.xcc.album.data.model.MediaData
 import com.xcc.album.ui.XAlbumActivity
+import com.xcc.xalbum.ui.MainScreen
 
 class MainActivity : ComponentActivity() {
+
+    companion object {
+        private const val REQUEST_CODE_ALBUM = 1001
+    }
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -27,23 +27,15 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val selectedMedia = mutableStateListOf<MediaData>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Button(onClick = { requestPermissions() }) {
-                    Text("打开相册")
-                }
-            }
-        }
-    }
-
-    private fun hasRequiredPermissions(): Boolean {
-        return getRequiredPermissions().all {
-            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+            MainScreen(
+                selectedMedia = selectedMedia,
+                onOpenAlbumClick = { requestPermissions() }
+            )
         }
     }
 
@@ -63,6 +55,18 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startXAlbum() {
-        startActivity(Intent(this, XAlbumActivity::class.java))
+        XAlbumActivity.launch(this, REQUEST_CODE_ALBUM)
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_CODE_ALBUM && resultCode == Activity.RESULT_OK) {
+            val medias = data?.getParcelableArrayListExtra<MediaData>(XAlbumActivity.EXTRA_SELECTED_MEDIA)
+            if (!medias.isNullOrEmpty()) {
+                selectedMedia.clear()
+                selectedMedia.addAll(medias)
+            }
+        }
     }
 }

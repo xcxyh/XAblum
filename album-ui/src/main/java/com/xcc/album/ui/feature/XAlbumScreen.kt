@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,9 +32,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,16 +43,16 @@ import com.xcc.album.ui.theme.XAlbumTheme
 import com.xcc.album.ui.viewmodel.XAlbumIntent
 import com.xcc.album.ui.viewmodel.XAlbumViewModel
 import com.xcc.mvi.collectAsState
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun XAlbumScreen(
-    viewModel: XAlbumViewModel,
     onBackClick: () -> Unit = {},
     onPreviewClick: () -> Unit = {},
     onConfirmClick: () -> Unit = {},
 ) {
+    val viewModel = koinViewModel<XAlbumViewModel>()
     val state by viewModel.collectAsState()
-    var isDropdownExpanded by remember { mutableStateOf(false) }
 
     XAlbumTheme {
         Scaffold(
@@ -63,9 +61,9 @@ fun XAlbumScreen(
             topBar = {
                 XAlbumTopBar(
                     title = state.currentFolder?.folderName ?: "",
-                    isDropdownExpanded = isDropdownExpanded,
+                    isDropdownExpanded = state.isDropdownExpanded,
                     onBackClick = onBackClick,
-                    onTitleClick = { isDropdownExpanded = !isDropdownExpanded }
+                    onTitleClick = { viewModel.setIntent(XAlbumIntent.ToggleDropdown(!state.isDropdownExpanded)) }
                 )
             },
             bottomBar = {
@@ -100,13 +98,13 @@ fun XAlbumScreen(
 
         // 下拉菜单
         FolderDropdownMenuContainer(
-            isExpanded = isDropdownExpanded,
+            isExpanded = state.isDropdownExpanded,
             folders = state.folders,
             onFolderSelected = { folder ->
                 viewModel.setIntent(XAlbumIntent.SwitchFolder(folder))
-                isDropdownExpanded = false
+                viewModel.setIntent(XAlbumIntent.ToggleDropdown(false))
             },
-            onDismiss = { isDropdownExpanded = false }
+            onDismiss = { viewModel.setIntent(XAlbumIntent.ToggleDropdown(false)) }
         )
     }
 }
@@ -135,7 +133,7 @@ private fun XAlbumTopBar(
                     color = XAlbumTheme.colors.topBarText
                 )
                 Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
+                    imageVector = if (isDropdownExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = "展开相册列表",
                     tint = XAlbumTheme.colors.topBarIcon
                 )
