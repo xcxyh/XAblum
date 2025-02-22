@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace 'com.example.xalbum'
+    namespace 'com.xcc.xalbum'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.example.xalbum"
+        applicationId "com.xcc.xalbum"
         minSdk 21
         targetSdk 34
         versionCode 1

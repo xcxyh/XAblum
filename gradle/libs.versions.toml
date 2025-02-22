@@ -18,6 +18,9 @@ coil3 = "3.0.1"
 glide = "5.0.0-rc01"
 glide-compose = "1.0.0-beta01"
 ui-tooling-preview-android = "1.7.5"
+material = "1.10.0"
+activity = "1.8.0"
+constraintlayout = "2.1.4"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "android-plugin" }
@@ -58,3 +61,6 @@ glide = { module = "com.github.bumptech.glide:glide", version.ref = "glide" }
 glide-ksp = { module = "com.github.bumptech.glide:ksp", version.ref = "glide" }
 glide-compose = { module = "com.github.bumptech.glide:compose", version.ref = "glide-compose" }
 androidx-ui-tooling-preview-android = { group = "androidx.compose.ui", name = "ui-tooling-preview-android", version.ref = "ui-tooling-preview-android" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
+androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
