@@ -1,5 +1,7 @@
 [versions]
 android-plugin = "8.5.1"
+koin-androidx-compose = "3.5.3"
+koin-android = "3.5.3"
 kotlin-plugin = "2.0.21"
 
 androidx-junit = "1.2.1"
@@ -33,6 +35,8 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 
 [libraries]
 android-gradle = { module = "com.android.tools.build:gradle", version.ref = "android-plugin" }
+koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin-android" }
+koin-androidx-compose = { module = "io.insert-koin:koin-androidx-compose", version.ref = "koin-androidx-compose" }
 kotlin-gradle = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin-plugin" }
 
 androidx-junit = { module = "androidx.test.ext:junit", version.ref = "androidx-junit" }

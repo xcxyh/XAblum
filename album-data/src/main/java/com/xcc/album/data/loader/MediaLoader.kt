@@ -10,6 +10,8 @@ import com.xcc.album.data.model.Folder
 import com.xcc.album.data.model.MediaData
 import com.xcc.album.data.model.MediaType
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -19,11 +21,12 @@ object MediaLoader {
     private const val TAG: String = "MediaLoader"
 
     private const val NEW_PICTURE_THRESHOLD = 10
-    private const val QUERY_BATCH_SIZE = 50
+    private const val INITIAL_BATCH_SIZE = 200
+    private const val MAX_BATCH_SIZE = 800
 
     private const val IMAGES_AND_VIDEOS_FOLDER_KEY = "images_and_videos_folder_key"
-    private const val IMAGES_FOLDER_KEY = "images_and_videos_folder_key"
-    private const val VIDEOS_FOLDER_KEY = "images_and_videos_folder_key"
+    private const val IMAGES_FOLDER_KEY = "images_folder_key"
+    private const val VIDEOS_FOLDER_KEY = "videos_folder_key"
 
     private const val IMAGES_AND_VIDEOS_FOLDER_NAME = "图片和视频"
     private const val IMAGES_FOLDER_NAME = "图片"
@@ -62,121 +65,138 @@ object MediaLoader {
 
     private val mediaCache: ConcurrentHashMap<Long, MediaData> = ConcurrentHashMap()
 
-    suspend fun loadMedia(
+    fun loadMediaFlow(
         context: Context,
-        mediaType: MediaType,
-    ): List<Folder> {
-        val idSelection = getSelectionStr(mediaType)
-        if (mediaCache.isEmpty()) {
-            query(context, idSelection)
-        } else {
-            refresh(context, idSelection)
+        mediaType: MediaType = MediaType.ImageAndVideo
+    ): Flow<List<Folder>> = flow {
+        val selection = getSelectionStr(mediaType)
+        val sortOrder = "$DATE_MODIFIED_COLUMN DESC"
+        
+        // 先获取总数
+        var cursor = context.contentResolver.query(
+            CONTENT_URI,
+            PROJECTIONS,
+            selection,
+            null,
+            sortOrder
+        )
+        
+        val totalCount = cursor?.count ?: 0
+        cursor?.close()
+        
+        var processed = 0
+        var batchSize = INITIAL_BATCH_SIZE
+
+        while (processed < totalCount) {
+            cursor = context.contentResolver.query(
+                CONTENT_URI,
+                PROJECTIONS,
+                selection,
+                null,
+                sortOrder
+            )
+
+            cursor?.use { cursor ->
+                // 跳过已处理的项
+                var skipped = 0
+                while (skipped < processed && cursor.moveToNext()) {
+                    skipped++
+                }
+                
+                // 处理当前批次
+                var count = 0
+                val mediaDataList = mutableListOf<MediaData>()
+                
+                while (count < batchSize && cursor.moveToNext()) {
+                    processMediaItem(cursor)?.let { 
+                        mediaDataList.add(it)
+                        count++
+                    }
+                }
+
+                if (mediaDataList.isNotEmpty()) {
+                    cacheResult(mediaDataList)
+                    emit(createFolders())
+                    
+                    processed += count
+                    batchSize = (batchSize * 2).coerceAtMost(MAX_BATCH_SIZE)
+                }
+            }
         }
+    }
+
+    private fun processMediaItem(cursor: Cursor): MediaData? {
+        val defaultId = Long.MAX_VALUE
+        val id = cursor.getLong(ID_COLUMN, defaultId)
+        val data = cursor.getString(DATA_COLUMN, "")
+        val size = cursor.getLong(SIZE_COLUMN, 0)
+        
+        if (id == defaultId || data.isBlank() || size <= 0) {
+            return null
+        }
+        
+        val file = File(data)
+        if (!file.isFile || !file.exists()) {
+            return null
+        }
+
+        val name = cursor.getString(DISPLAY_NAME_COLUMN, "")
+        val mimeType = cursor.getString(MIME_TYPE_COLUMN, "")
+        val bucketId = cursor.getString(BUCKET_ID_COLUMN, "")
+        val bucketName = cursor.getString(BUCKET_DISPLAY_NAME_COLUMN, "")
+        val width = cursor.getInt(WIDTH_COLUMN, 0)
+        val height = cursor.getInt(HEIGHT_COLUMN, 0)
+        val uri = ContentUris.withAppendedId(CONTENT_URI, id)
+        val type = cursor.getInt(MEDIA_TYPE_COLUMN, 0)
+        val isVideo = type == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO
+        val durationMs = if (isVideo) cursor.getInt(DURATION_COLUMN, 0) else 0
+        val modifiedTime = cursor.getLong(DATE_MODIFIED_COLUMN, 0)
+
+        return MediaData(
+            mediaId = id,
+            path = data,
+            uri = uri,
+            width = width,
+            height = height,
+            name = name,
+            modifiedTime = modifiedTime,
+            mimeType = mimeType,
+            bucketId = bucketId,
+            bucketName = bucketName,
+            fileSize = size,
+            durationMs = durationMs,
+        )
+    }
+
+    private fun createFolders(): List<Folder> {
         val result = mutableListOf<Folder>()
-        // 全部
-        val updatedTime = mediaCache.values.firstOrNull()?.modifiedTime ?: 0L
-        val allFolder = Folder(IMAGES_AND_VIDEOS_FOLDER_KEY, IMAGES_AND_VIDEOS_FOLDER_NAME, updatedTime, mediaCache.values.toList())
+        
+        // 全部媒体
+        val allMedia = mediaCache.values.sortedByDescending { it.modifiedTime }
+        val updatedTime = allMedia.firstOrNull()?.modifiedTime ?: 0L
+        result.add(Folder(IMAGES_AND_VIDEOS_FOLDER_KEY, IMAGES_AND_VIDEOS_FOLDER_NAME, updatedTime, allMedia))
+        
         // 图片
-        val images = mediaCache.values.filter { it.isImage }
+        val images = allMedia.filter { it.isImage }.sortedByDescending { it.modifiedTime }
         val imagesUpdatedTime = images.firstOrNull()?.modifiedTime ?: 0L
-        val imageFolder = Folder(IMAGES_FOLDER_KEY, IMAGES_FOLDER_NAME, imagesUpdatedTime, images)
+        result.add(Folder(IMAGES_FOLDER_KEY, IMAGES_FOLDER_NAME, imagesUpdatedTime, images))
+        
         // 视频
-        val videos = mediaCache.values.filter { it.isVideo }
+        val videos = allMedia.filter { it.isVideo }.sortedByDescending { it.modifiedTime }
         val videosUpdatedTime = videos.firstOrNull()?.modifiedTime ?: 0L
-        val videoFolder = Folder(VIDEOS_FOLDER_KEY, VIDEOS_FOLDER_NAME, videosUpdatedTime, videos)
-        // buckets
-        val buckets = mediaCache.values.groupBy { it.bucketId }.mapValues { (bucketId, medias) ->
+        result.add(Folder(VIDEOS_FOLDER_KEY, VIDEOS_FOLDER_NAME, videosUpdatedTime, videos))
+        
+        // 按文件夹分组
+        val buckets = allMedia.groupBy { it.bucketId }.mapValues { (bucketId, medias) ->
             val sortedMedias = medias.sortedByDescending { it.modifiedTime }
             val bucketName = sortedMedias.firstOrNull()?.bucketName ?: ""
             val updateTime = sortedMedias.firstOrNull()?.modifiedTime ?: 0L
             Folder(bucketId, bucketName, updateTime, sortedMedias)
         }
-        result.add(allFolder)
-        result.add(imageFolder)
-        result.add(videoFolder)
         result.addAll(buckets.values)
+        
         return result
     }
-
-    suspend fun loadMedia(
-        context: Context,
-        uri: Uri,
-    ): MediaData? {
-        return withContext(context = Dispatchers.Default) {
-            val id = ContentUris.parseId(uri)
-            val selection = MediaStore.MediaColumns._ID + " = " + id
-            val resources = query(
-                context = context,
-                idSelection = selection,
-            )
-            if (resources.isNullOrEmpty() || resources.size != 1) {
-                return@withContext null
-            }
-            return@withContext resources[0]
-        }
-    }
-
-    private suspend fun refresh(
-        context: Context,
-        idSelection: String?
-    ): Boolean {
-        val cursor: Cursor? = context.contentResolver.query(
-            CONTENT_URI,
-            PROJECTIONS,
-            idSelection ?: getSelectionStr(),
-            null,
-            null,
-        )
-        if (cursor == null) {
-            return false
-        }
-        val ids = mutableListOf<Long>()
-        kotlin.runCatching {
-            cursor.use {
-                while (cursor.moveToNext()) {
-                    val defaultId = Long.MAX_VALUE
-                    val id = cursor.getLong(ID_COLUMN, defaultId)
-                    val data = cursor.getString(DATA_COLUMN, "")
-                    val size = cursor.getLong(SIZE_COLUMN, 0)
-                    if (id == defaultId || data.isBlank() || size <= 0) {
-                        continue
-                    }
-                    ids.add(id)
-                }
-            }
-        }.getOrElse {
-            Log.e(TAG, "refresh: error ", it)
-        }
-
-        val cacheSet = mediaCache.keys
-        val newIdSet = ids.toSet()
-        if (cacheSet == newIdSet) {
-            return false
-        }
-        cacheSet.retainAll(newIdSet)
-        ids.removeAll(cacheSet)
-        if (ids.isNotEmpty()) {
-            // query the increment
-            val builder = StringBuilder()
-            if (ids.size < QUERY_BATCH_SIZE) {
-                queryByIds(context, ids, builder)
-            } else {
-                val idList = mutableListOf<Long>()
-                for (id in ids) {
-                    idList.add(id)
-                    if (idList.size == QUERY_BATCH_SIZE) {
-                        queryByIds(context, idList, builder)
-                        idList.clear()
-                    }
-                }
-                if (idList.isNotEmpty()) {
-                    queryByIds(context, idList, builder)
-                }
-            }
-        }
-        return true
-    }
-
 
     private suspend fun queryByIds(
         context: Context,

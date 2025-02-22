@@ -1,17 +1,25 @@
 package com.xcc.album.ui
 
 import android.os.Bundle
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
 import com.xcc.album.ui.feature.XAlbumScreen
+import com.xcc.album.ui.viewmodel.XAlbumIntent
+import com.xcc.album.ui.viewmodel.XAlbumViewModel
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
-class XAlbumActivity : AppCompatActivity() {
+class XAlbumActivity : ComponentActivity() {
+
+    private val viewModel by viewModel<XAlbumViewModel>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContent {
-            XAlbumScreen()
+            XAlbumScreen(
+                viewModel = viewModel,
+                onBackClick = { finish() }
+            )
         }
+        viewModel.setIntent(XAlbumIntent.LoadMedia(this))
     }
 }

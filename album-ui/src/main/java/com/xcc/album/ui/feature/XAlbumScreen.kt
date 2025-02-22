@@ -1,6 +1,5 @@
 package com.xcc.album.ui.feature
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,6 +19,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,37 +40,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import coil.compose.rememberAsyncImagePainter
+import com.xcc.album.data.model.MediaData
 import com.xcc.album.ui.theme.XAlbumTheme
+import com.xcc.album.ui.viewmodel.XAlbumIntent
+import com.xcc.album.ui.viewmodel.XAlbumViewModel
+import com.xcc.mvi.collectAsState
 
-data class AlbumItem(
-    val id: Long,
-    val imageUrl: String,
-    val isVideo: Boolean = false,
-    val duration: Long = 0L // 视频时长，单位毫秒
-)
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun XAlbumScreen(
+    viewModel: XAlbumViewModel,
     onBackClick: () -> Unit = {},
     onPreviewClick: () -> Unit = {},
     onConfirmClick: () -> Unit = {},
 ) {
-    var selectedCount by remember { mutableStateOf(0) }
-    var currentAlbumTitle by remember { mutableStateOf("所有照片") }
+    val state by viewModel.collectAsState()
     var isDropdownExpanded by remember { mutableStateOf(false) }
-    var selectedItems by remember { mutableStateOf(setOf<Long>()) }
-
-    // 模拟数据，实际应该从 ViewModel 获取
-    val items = remember {
-        List(20) { index ->
-            AlbumItem(
-                id = index.toLong(),
-                imageUrl = "https://picsum.photos/200/200?random=$index"
-            )
-        }
-    }
 
     XAlbumTheme {
         Scaffold(
@@ -78,7 +62,7 @@ fun XAlbumScreen(
             containerColor = XAlbumTheme.colors.mainPageBackground,
             topBar = {
                 XAlbumTopBar(
-                    title = currentAlbumTitle,
+                    title = state.currentFolder?.folderName ?: "",
                     isDropdownExpanded = isDropdownExpanded,
                     onBackClick = onBackClick,
                     onTitleClick = { isDropdownExpanded = !isDropdownExpanded }
@@ -86,7 +70,7 @@ fun XAlbumScreen(
             },
             bottomBar = {
                 XAlbumBottomBar(
-                    selectedCount = selectedCount,
+                    selectedCount = state.selectedItems.size,
                     onPreviewClick = onPreviewClick,
                     onConfirmClick = onConfirmClick
                 )
@@ -97,20 +81,33 @@ fun XAlbumScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                AlbumGrid(
-                    items = items,
-                    selectedItems = selectedItems,
-                    onItemClick = { item ->
-                        selectedItems = if (item.id in selectedItems) {
-                            selectedItems - item.id
-                        } else {
-                            selectedItems + item.id
+                if (state.isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center),
+                        color = XAlbumTheme.colors.circularLoading
+                    )
+                } else {
+                    AlbumGrid(
+                        medias = state.currentFolder?.medias ?: emptyList(),
+                        selectedItems = state.selectedItems.map { it.mediaId }.toSet(),
+                        onItemClick = { media -> 
+                            viewModel.setIntent(XAlbumIntent.SelectMedia(media))
                         }
-                        selectedCount = selectedItems.size
-                    }
-                )
+                    )
+                }
             }
         }
+
+        // 下拉菜单
+        FolderDropdownMenuContainer(
+            isExpanded = isDropdownExpanded,
+            folders = state.folders,
+            onFolderSelected = { folder ->
+                viewModel.setIntent(XAlbumIntent.SwitchFolder(folder))
+                isDropdownExpanded = false
+            },
+            onDismiss = { isDropdownExpanded = false }
+        )
     }
 }
 
@@ -197,9 +194,9 @@ private fun XAlbumBottomBar(
 
 @Composable
 private fun AlbumGrid(
-    items: List<AlbumItem>,
+    medias: List<MediaData>,
     selectedItems: Set<Long>,
-    onItemClick: (AlbumItem) -> Unit
+    onItemClick: (MediaData) -> Unit
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
@@ -207,10 +204,10 @@ private fun AlbumGrid(
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        items(items) { item ->
+        items(medias) { item ->
             AlbumGridItem(
                 item = item,
-                isSelected = item.id in selectedItems,
+                isSelected = item.mediaId in selectedItems,
                 onClick = { onItemClick(item) }
             )
         }
@@ -219,7 +216,7 @@ private fun AlbumGrid(
 
 @Composable
 private fun AlbumGridItem(
-    item: AlbumItem,
+    item: MediaData,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
@@ -229,13 +226,12 @@ private fun AlbumGridItem(
             .clickable(onClick = onClick)
     ) {
         // 图片
-        Image(
-            painter = rememberAsyncImagePainter(item.imageUrl),
-            contentDescription = null,
+        coil3.compose.AsyncImage(
             modifier = Modifier
-                .fillMaxSize()
-                .background(XAlbumTheme.colors.mediaItemBackground),
-            contentScale = ContentScale.Crop
+                .fillMaxSize(),
+            model = item.uri,
+            contentScale = ContentScale.Crop,
+            contentDescription = item.name
         )
 
         // 选择指示器
@@ -273,7 +269,7 @@ private fun AlbumGridItem(
         // 如果是视频，显示视频时长
         if (item.isVideo) {
             Text(
-                text = formatDuration(item.duration),
+                text = formatDuration(item.durationMs.toLong()),
                 color = XAlbumTheme.colors.videoIcon,
                 modifier = Modifier
                     .align(Alignment.BottomStart)
