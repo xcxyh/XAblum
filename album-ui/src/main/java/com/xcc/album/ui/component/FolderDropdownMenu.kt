@@ -1,4 +1,4 @@
-package com.xcc.album.ui.feature
+package com.xcc.album.ui.component
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -27,9 +27,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import com.xcc.album.data.model.Folder
+import com.xcc.album.ui.R
 import com.xcc.album.ui.theme.XAlbumTheme
 
 @Composable
@@ -138,7 +140,7 @@ private fun FolderItem(
                 style = MaterialTheme.typography.bodyLarge
             )
             Text(
-                text = "${folder.medias.size}张",
+                text = stringResource(R.string.xalbum_media_count, folder.medias.size),
                 color = XAlbumTheme.colors.dropdownMenuText.copy(alpha = 0.7f),
                 style = MaterialTheme.typography.bodyMedium
             )

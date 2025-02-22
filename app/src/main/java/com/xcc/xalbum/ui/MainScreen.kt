@@ -26,8 +26,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.xcc.album.data.model.MediaData
+import com.xcc.xalbum.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,7 +40,7 @@ fun MainScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("XAlbum") }
+                title = { Text(stringResource(R.string.app_title_name)) }
             )
         }
     ) { padding ->
@@ -55,7 +57,7 @@ fun MainScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Button(onClick = onOpenAlbumClick) {
-                    Text("打开相册")
+                    Text(stringResource(R.string.xalbum_open_album))
                 }
             }
 
@@ -77,7 +79,7 @@ fun MainScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "暂无已选择的媒体文件",
+                        text = stringResource(R.string.xalbum_empty_media_tips),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -142,7 +144,10 @@ private fun MediaItem(
                 )
                 if (media.isVideo) {
                     Text(
-                        text = "视频时长：${formatDuration(media.durationMs.toLong())}",
+                        text = stringResource(
+                            R.string.xalbum_video_duration_format,
+                            formatDuration(media.durationMs.toLong())
+                        ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -156,4 +161,4 @@ private fun formatDuration(durationMs: Long): String {
     val seconds = (durationMs / 1000) % 60
     val minutes = (durationMs / (1000 * 60)) % 60
     return String.format("%02d:%02d", minutes, seconds)
-} 
+}

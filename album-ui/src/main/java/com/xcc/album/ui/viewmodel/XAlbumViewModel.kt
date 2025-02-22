@@ -65,7 +65,7 @@ class XAlbumViewModel: BaseMviViewModel<XAlbumState, XAlbumIntent, XAlbumEvent>(
                     }
             } catch (e: Throwable) {
                 setState { copy(isLoading = false) }
-                sendEvent(XAlbumEvent.ShowError(e.message ?: "加载媒体失败"))
+                sendEvent(XAlbumEvent.ShowError(e.message ?: "Unknown error"))
             }
         }
     }

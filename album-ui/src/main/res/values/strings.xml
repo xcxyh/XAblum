@@ -1,3 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-
+    <!-- Album Screen -->
+    <string name="xalbum_preview">预览</string>
+    <string name="xalbum_confirm">确定</string>
+    <string name="xalbum_confirm_with_count">确定(%d)</string>
+    <string name="xalbum_back">返回</string>
+    <string name="xalbum_expand_album_list">展开相册列表</string>
+    <string name="xalbum_media_count">%d张</string>
+    <string name="xalbum_selected">已选择</string>
+    <string name="xalbum_unselected">未选择</string>
 </resources>

@@ -1,3 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">xalbum</string>
+    <!-- App -->
+    <string name="app_name">XAlbum</string>
+    <string name="app_title_name">XAlbum</string>
+
+    <!-- Main Screen -->
+    <string name="xalbum_open_album">打开相册</string>
+    <string name="xalbum_empty_media_tips">暂无已选择的媒体文件</string>
+    <string name="xalbum_video_duration_format">视频时长：%s</string>
+
 </resources>
