@@ -11,9 +11,6 @@ androidx-activity = "1.9.3"
 androidx-lifecycle = "2.8.7"
 androidx-compose-bom = "2024.10.01"
 
-matisse-remote = "2.1.2"
-matisse-publishing = "2.1.2"
-
 junit = "4.13.2"
 coil = "2.7.0"
 coil3 = "3.0.1"
