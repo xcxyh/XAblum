@@ -82,45 +82,39 @@ fun UserProfileScreen(viewModel: UserProfileViewModel) {
                     .padding(16.dp)
             ) {
                 // 用户信息卡片
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            text = "用户名: $username",
-                            style = MaterialTheme.typography.headlineMedium
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "邮箱: $email",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        
-                        // 更新用户名
-                        Spacer(modifier = Modifier.height(16.dp))
-                        OutlinedTextField(
-                            value = newUsername,
-                            onValueChange = { newUsername = it },
-                            label = { Text("新用户名") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(
-                            onClick = {
-                                viewModel.sendIntent(
-                                    UserProfileIntent.UserDataIntent(
-                                        UserDataIntent.UpdateUsername(newUsername)
-                                    )
+                    Text(
+                        text = "用户名: $username",
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "邮箱: $email",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+
+                    // 更新用户名
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = newUsername,
+                        onValueChange = { newUsername = it },
+                        label = { Text("新用户名") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            viewModel.sendIntent(
+                                UserProfileIntent.UserDataIntent(
+                                    UserDataIntent.UpdateUsername("newname")
                                 )
-                            },
-                            modifier = Modifier.align(Alignment.End)
-                        ) {
-                            Text("更新用户名")
-                        }
+                            )
+                        },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text("更新用户名")
                     }
                 }
                 

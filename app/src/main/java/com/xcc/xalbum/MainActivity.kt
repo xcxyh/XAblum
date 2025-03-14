@@ -11,7 +11,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.mutableStateListOf
 import com.xcc.album.data.model.MediaData
 import com.xcc.album.ui.XAlbumActivity
-import com.xcc.xalbum.ui.MainScreen
+import com.xcc.mvi.improved.example.UserProfileScreen
+import com.xcc.mvi.improved.example.UserProfileViewModel
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
 
@@ -27,16 +29,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val viewModel by viewModel<UserProfileViewModel>()
+
     private val selectedMedia = mutableStateListOf<MediaData>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MainScreen(
-                selectedMedia = selectedMedia,
-                onOpenAlbumClick = { requestPermissions() }
-            )
+//            MainScreen(
+//                selectedMedia = selectedMedia,
+//                onOpenAlbumClick = { requestPermissions() }
+//            )
+            UserProfileScreen(viewModel)
         }
+        viewModel.loadUserProfile("xxccc")
     }
 
     private fun getRequiredPermissions(): Array<String> {

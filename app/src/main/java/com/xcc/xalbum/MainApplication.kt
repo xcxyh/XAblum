@@ -6,6 +6,7 @@ import android.os.Build
 import coil3.request.allowHardware
 import coil3.request.crossfade
 import com.xcc.album.ui.di.xAlbumModule
+import com.xcc.mvi.improved.example.di.userModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
@@ -18,7 +19,7 @@ class MainApplication: Application() {
         startKoin {
             androidLogger()
             androidContext(this@MainApplication)
-            modules(xAlbumModule)
+            modules(xAlbumModule, userModule)
         }
         initCoil(this)
         initCoil3()

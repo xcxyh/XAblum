@@ -144,14 +144,31 @@ sealed class UserProfileEvent : MviEvent {
 }
 
 // 主ViewModel
-class UserProfileViewModel(
-    private val userRepository: UserRepository,
-    private val postsRepository: PostsRepository
-) : ModularMviViewModel<UserProfileState, UserProfileIntent, UserProfileEvent>(UserProfileState()) {
-    
-    private val userDataModule: UserDataModule
-    private val postsModule: PostsModule
-    
+class UserProfileViewModel : ModularMviViewModel<UserProfileState, UserProfileIntent, UserProfileEvent>(UserProfileState()) {
+
+    private val userRepository: UserRepository = object : UserRepository {
+        override suspend fun getUser(userId: String): User {
+            return User(userId,"xcc", "136@gmail.com")
+        }
+    }
+    private val postsRepository: PostsRepository = object : PostsRepository {
+        override suspend fun getUserPosts(userId: String): List<Post> {
+            return listOf(Post(userId, "xcc", "xcc"))
+        }
+    }
+
+    // 初始化模块
+    private val userDataModule: UserDataModule = UserDataModule(
+        UserDataState(),
+        viewModelScope,
+        userRepository
+    )
+    private val postsModule: PostsModule = PostsModule(
+        PostsState(),
+        viewModelScope,
+        postsRepository
+    )
+
     // 状态选择器
     private val usernameSelector = select { it.userData.username }
     private val emailSelector = select { it.userData.email }
@@ -162,19 +179,7 @@ class UserProfileViewModel(
     private val userErrorPath = { state: UserProfileState -> state.userData.error }.asPath()
     
     init {
-        // 初始化模块
-        userDataModule = UserDataModule(
-            UserDataState(),
-            viewModelScope,
-            userRepository
-        )
-        
-        postsModule = PostsModule(
-            PostsState(),
-            viewModelScope,
-            postsRepository
-        )
-        
+
         // 注册模块
         registerModule(userDataModule) { state, moduleState ->
             state.copy(userData = moduleState)
