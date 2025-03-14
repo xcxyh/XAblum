@@ -2,6 +2,8 @@
 
 XAlbum 是一个基于 Jetpack Compose 实现的 Android 相册选择器，在 Cursor IDE & Claude AI 的辅助下开发完成。项目采用 MVI 架构模式，支持图片和视频的选择，具有流畅的动画效果和友好的用户界面。
 
+![](C:\Users\Administrator\Desktop\Screenshot_20250222_180310.png)
+
 ## 功能特点
 
 - 支持图片和视频选择
