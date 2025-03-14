@@ -1,9 +1,7 @@
 # 改进的MVI架构框架
-
 这是一个基于ViewModel的改进版MVI架构框架，解决了原有框架中状态过于集中和状态层级过深的问题。
 
 ## 主要特性
-
 1. **模块化状态管理**：
    - 将大型状态对象分解为多个小型状态对象
    - 使用状态模块独立管理各个子状态
@@ -52,182 +50,7 @@
 - `MviView`：MVI View接口，提供状态订阅和事件处理的扩展函数
 - `MviComposeExtensions`：Jetpack Compose扩展，用于在Compose中使用MVI架构
 
-## 使用方法
-
-### 1. 定义状态、意图和事件
-
-```kotlin
-// 子状态
-data class UserDataState(
-    val username: String = "",
-    val email: String = "",
-    val isLoading: Boolean = false
-) : MviSubState
-
-// 子意图
-sealed class UserDataIntent : MviSubIntent {
-    data class UpdateUsername(val username: String) : UserDataIntent()
-    data class UpdateEmail(val email: String) : UserDataIntent()
-}
-
-// 主状态
-data class MainState(
-    val userData: UserDataState = UserDataState(),
-    val otherState: OtherState = OtherState()
-) : MviState
-
-// 主意图
-sealed class MainIntent : MviIntent {
-    data class UserDataIntent(val intent: UserDataIntent) : MainIntent()
-    data class OtherIntent(val intent: OtherIntent) : MainIntent()
-}
-
-// 事件
-sealed class MainEvent : MviEvent {
-    data class ShowError(val message: String) : MainEvent()
-}
-```
-
-### 2. 创建状态模块
-
-```kotlin
-class UserDataModule(
-    initialState: UserDataState,
-    coroutineScope: CoroutineScope
-) : BaseStateModule<UserDataState, UserDataIntent>(initialState, coroutineScope) {
-    
-    override fun handleIntent(intent: UserDataIntent) {
-        when (intent) {
-            is UserDataIntent.UpdateUsername -> updateUsername(intent.username)
-            is UserDataIntent.UpdateEmail -> updateEmail(intent.email)
-        }
-    }
-    
-    private fun updateUsername(username: String) {
-        updateState { copy(username = username) }
-    }
-    
-    private fun updateEmail(email: String) {
-        updateState { copy(email = email) }
-    }
-}
-```
-
-### 3. 创建ViewModel
-
-```kotlin
-class MainViewModel : ModularMviViewModel<MainState, MainIntent, MainEvent>(MainState()) {
-    
-    private val userDataModule = UserDataModule(UserDataState(), viewModelScope)
-    private val otherModule = OtherModule(OtherState(), viewModelScope)
-    
-    init {
-        // 注册模块
-        registerModule(userDataModule) { state, moduleState ->
-            state.copy(userData = moduleState)
-        }
-        
-        registerModule(otherModule) { state, moduleState ->
-            state.copy(otherState = moduleState)
-        }
-    }
-    
-    override fun handleIntent(intent: MainIntent) {
-        when (intent) {
-            is MainIntent.UserDataIntent -> userDataModule.handleIntent(intent.intent)
-            is MainIntent.OtherIntent -> otherModule.handleIntent(intent.intent)
-        }
-    }
-}
-```
-
-### 4. 在View中使用
-
-```kotlin
-class MainFragment : Fragment(), MviView {
-    
-    private val viewModel: MainViewModel by viewModels()
-    
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        
-        // 使用状态选择器观察特定状态
-        viewModel.observeState({ it.userData.username }) { username ->
-            usernameTextView.text = username
-        }
-        
-        // 使用状态路径观察深层状态
-        val loadingPath = { state: MainState -> state.userData.isLoading }.asPath()
-        viewModel.observeState(loadingPath) { isLoading ->
-            loadingProgressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
-        }
-        
-        // 观察事件
-        viewModel.observeEvents { event ->
-            when (event) {
-                is MainEvent.ShowError -> {
-                    Toast.makeText(requireContext(), event.message, Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-        
-        // 发送意图
-        updateButton.setOnClickListener {
-            viewModel.sendIntent(
-                MainIntent.UserDataIntent(
-                    UserDataIntent.UpdateUsername("新用户名")
-                )
-            )
-        }
-    }
-}
-```
-
-### 5. 在Compose中使用
-
-```kotlin
-@Composable
-fun MainScreen(viewModel: MainViewModel) {
-    // 收集状态
-    val username by viewModel.collectAsState { it.userData.username }
-    val isLoading by viewModel.collectAsState { it.userData.isLoading }
-    
-    // 处理事件
-    LaunchedEffect(viewModel) {
-        viewModel.eventFlow.collect { event ->
-            when (event) {
-                is MainEvent.ShowError -> {
-                    // 显示错误
-                }
-            }
-        }
-    }
-    
-    // UI
-    Column {
-        Text("用户名: $username")
-        
-        Button(
-            onClick = {
-                viewModel.sendIntent(
-                    MainIntent.UserDataIntent(
-                        UserDataIntent.UpdateUsername("新用户名")
-                    )
-                )
-            }
-        ) {
-            Text("更新用户名")
-        }
-        
-        if (isLoading) {
-            CircularProgressIndicator()
-        }
-    }
-}
-```
-
 ## 优势
-
 1. **解耦的状态管理**：
    - 每个模块独立管理自己的状态
    - 减少状态对象的复杂度
@@ -245,6 +68,142 @@ fun MainScreen(viewModel: MainViewModel) {
 4. **更好的Compose集成**：
    - 提供更多的Compose扩展函数
    - 简化Compose中的状态收集
+
+## 架构图
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                           View Layer                            │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
+│  │   Fragment      │  │  Compose UI     │  │  Activity       │  │
+│  │  implements     │  │                 │  │  implements     │  │
+│  │   MviView       │  │                 │  │   MviView       │  │
+│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘  │
+└───────────┼─────────────────────┼─────────────────────┼─────────┘
+            │                     │                     │
+            │    observeState     │   collectAsState    │    observeState
+            │    observeEvents    │                     │    observeEvents
+            ▼                     ▼                     ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                        ViewModel Layer                          │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              ModularMviViewModel<S,I,E>                 │    │
+│  │                                                         │    │
+│  │  ┌─────────────┐   ┌─────────────┐   ┌─────────────┐    │    │
+│  │  │ StateModule │   │ StateModule │   │ StateModule │    │    │
+│  │  │    <S,MS1,I1>   │    <S,MS2,I2>   │    <S,MS3,I3>   │    │
+│  │  └─────────────┘   └─────────────┘   └─────────────┘    │    │
+│  │         │                │                 │            │    │
+│  │         └────────────────┼─────────────────┘            │    │
+│  │                          │                              │    │
+│  │                          ▼                              │    │
+│  │  ┌─────────────────────────────────────────────────┐    │    │
+│  │  │              Shared State (S)                   │    │    │
+│  │  │  ┌───────────┐  ┌───────────┐  ┌───────────┐    │    │    │
+│  │  │  │    MS1    │  │    MS2    │  │    MS3    │    │    │    │
+│  │  │  └───────────┘  └───────────┘  └───────────┘    │    │    │
+│  │  └─────────────────────────────────────────────────┘    │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+            ▲                     ▲                     ▲
+            │                     │                     │
+            │     sendIntent      │     sendIntent      │     sendIntent
+            │                     │                     │
+┌───────────┼─────────────────────┼─────────────────────┼─────────┐
+│           │                     │                     │         │
+│  ┌────────┴────────┐  ┌─────────┴───────┐  ┌─────────┴───────┐  │
+│  │  User Actions   │  │  User Actions   │  │  User Actions   │  │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
+│                       User Interactions                         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## 类图
+```
+┌───────────────────┐     ┌───────────────────┐     ┌───────────────────┐
+│    <<interface>>  │     │    <<interface>>  │     │    <<interface>>  │
+│     MviState      │     │     MviIntent     │     │     MviEvent      │
+└───────────────────┘     └───────────────────┘     └───────────────────┘
+         ▲                         ▲                         
+         │                         │                         
+┌───────────────────┐     ┌───────────────────┐     ┌───────────────────┐
+│    <<interface>>  │     │    <<interface>>  │     │  EventPriority    │
+│    MviSubState    │     │    MviSubIntent   │     │    (enum)         │
+└───────────────────┘     └───────────────────┘     └───────────────────┘
+                                                              │
+                                                              │
+                                                    ┌───────────────────┐
+                                                    │   EventWrapper<E> │
+                                                    └───────────────────┘
+
+┌───────────────────────────────────────┐
+│           ViewModel                   │
+│                                       │
+└───────────────┬───────────────────────┘
+                │
+                │
+┌───────────────▼───────────────────────┐
+│     ImprovedMviViewModel<S,I,E>       │
+│                                       │
+│ - _stateFlow: MutableStateFlow<S>     │
+│ - stateFlow: StateFlow<S>             │
+│ - eventFlow: SharedFlow<E>            │
+│ + sendIntent(intent: I)               │
+│ # updateState(reducer: S.() -> S)     │
+│ # sendEvent(event: E)                 │
+│ # select(selector: (S) -> T)          │
+│ # observe(selector: (S) -> T): Flow<T>│
+└───────────────┬───────────────────────┘
+                │
+                │
+┌───────────────▼───────────────────────┐
+│     ModularMviViewModel<S,I,E>        │
+│                                       │
+│ - modules: List<Any>                  │
+│ + registerModule(...)                 │
+│ # dispatchToModule(...)               │
+│ # selectFromModule(...)               │
+└───────────────────────────────────────┘
+
+┌───────────────────────────────────────┐
+│    <<interface>>                      │
+│    StateModule<S,MS,I>                │
+│                                       │
+│ + mainStateFlow: StateFlow<S>         │
+│ + stateSelector: (S) -> MS            │
+│ + subStateFlow: StateFlow<MS>         │
+│ + handleIntent(intent: I)             │
+└───────────────┬───────────────────────┘
+                │
+                │
+┌───────────────▼───────────────────────┐
+│    BaseStateModule<S,MS,I>            │
+│                                       │
+│ - mainStateFlow: MutableStateFlow<S>  │
+│ - stateSelector: (S) -> MS            │
+│ - stateUpdater: (S,MS) -> S           │
+│ # currentSubState: MS                 │
+│ # updateState(reducer: MS.() -> MS)   │
+│ # select(selector: (MS) -> T)         │
+└───────────────────────────────────────┘
+
+┌───────────────────────────────────────┐     ┌───────────────────────────────────────┐
+│    StateSelector<S,T>                 │     │    StatePath<S,T>                     │
+│                                       │     │                                       │
+│ + select: (S) -> T                    │     │ - selector: StateSelector<S,T>        │
+│ + then(nextSelector: (T) -> R)        │     │ + getSelector(): StateSelector<S,T>   │
+│ + selectFromFlow(flow: Flow<S>)       │     │ + then(nextSelector: (T) -> R)        │
+└───────────────────────────────────────┘     └───────────────────────────────────────┘
+
+┌───────────────────────────────────────┐
+│    <<interface>>                      │
+│    MviView                            │
+│                                       │
+│ + subscriptionScope: CoroutineScope?  │
+│ + ImprovedMviViewModel.observeState() │
+│ + ImprovedMviViewModel.observeEvents()│
+└───────────────────────────────────────┘
+```
 
 ## 状态流图
 
@@ -489,127 +448,54 @@ interface MviView {
 }
 ```
 
-## 详细使用指南
+## 使用方法
 
-### 定义状态、意图和事件
-
-首先，需要定义应用的状态、意图和事件。
-
-#### 主状态
-
-主状态是一个包含所有子状态的数据类，实现`MviState`接口。
+### 1. 定义状态、意图和事件
 
 ```kotlin
-data class AppState(
-    val userInfo: UserInfo = UserInfo(),
-    val settings: Settings = Settings(),
-    val content: Content = Content()
-) : MviState
-```
-
-#### 子状态
-
-子状态是主状态的组成部分，每个子状态负责特定的功能域。
-
-```kotlin
-data class UserInfo(
-    val userId: String = "",
+// 子状态
+data class UserDataState(
     val username: String = "",
     val email: String = "",
-    val isLoading: Boolean = false,
-    val error: String? = null
-)
+    val isLoading: Boolean = false
+) : MviSubState
 
-data class Settings(
-    val theme: String = "light",
-    val fontSize: Int = 14,
-    val notifications: Boolean = true
-)
-
-data class Content(
-    val items: List<ContentItem> = emptyList(),
-    val isLoading: Boolean = false,
-    val error: String? = null
-)
-```
-
-#### 意图
-
-意图表示用户的操作，每个模块有自己的意图类型。
-
-```kotlin
-// 用户模块意图
-sealed class UserIntent : MviSubIntent {
-    data class LoadUser(val userId: String) : UserIntent()
-    data class UpdateUsername(val username: String) : UserIntent()
-    data class UpdateEmail(val email: String) : UserIntent()
+// 子意图
+sealed class UserDataIntent : MviSubIntent {
+    data class UpdateUsername(val username: String) : UserDataIntent()
+    data class UpdateEmail(val email: String) : UserDataIntent()
 }
 
-// 设置模块意图
-sealed class SettingsIntent : MviSubIntent {
-    data class ChangeTheme(val theme: String) : SettingsIntent()
-    data class ChangeFontSize(val size: Int) : SettingsIntent()
-    data class ToggleNotifications(val enabled: Boolean) : SettingsIntent()
-}
+// 主状态
+data class MainState(
+    val userData: UserDataState = UserDataState(),
+    val otherState: OtherState = OtherState()
+) : MviState
 
 // 主意图
-sealed class AppIntent : MviIntent {
-    data class UserIntent(val intent: com.xcc.mvi.improved.example.UserIntent) : AppIntent()
-    data class SettingsIntent(val intent: SettingsIntent) : AppIntent()
-    data class ContentIntent(val intent: ContentIntent) : AppIntent()
+sealed class MainIntent : MviIntent {
+    data class UserDataIntent(val intent: UserDataIntent) : MainIntent()
+    data class OtherIntent(val intent: OtherIntent) : MainIntent()
+}
+
+// 事件
+sealed class MainEvent : MviEvent {
+    data class ShowError(val message: String) : MainEvent()
 }
 ```
 
-#### 事件
-
-事件表示需要通知UI的一次性事件。
+### 2. 创建状态模块
 
 ```kotlin
-sealed class AppEvent : MviEvent {
-    data class ShowError(val message: String) : AppEvent()
-    data class ShowSuccess(val message: String) : AppEvent()
-}
-```
-
-### 创建状态模块
-
-状态模块负责管理特定功能域的状态和处理相关意图。
-
-```kotlin
-class UserModule(
-    mainStateFlow: MutableStateFlow<AppState>,
-    stateSelector: (AppState) -> UserInfo,
-    stateUpdater: (AppState, UserInfo) -> AppState,
-    coroutineScope: CoroutineScope,
-    private val userRepository: UserRepository
-) : BaseStateModule<AppState, UserInfo, UserIntent>(
-    mainStateFlow, stateSelector, stateUpdater, coroutineScope
-) {
+class UserDataModule(
+    initialState: UserDataState,
+    coroutineScope: CoroutineScope
+) : BaseStateModule<UserDataState, UserDataIntent>(initialState, coroutineScope) {
     
-    override fun handleIntent(intent: UserIntent) {
+    override fun handleIntent(intent: UserDataIntent) {
         when (intent) {
-            is UserIntent.LoadUser -> loadUser(intent.userId)
-            is UserIntent.UpdateUsername -> updateUsername(intent.username)
-            is UserIntent.UpdateEmail -> updateEmail(intent.email)
-        }
-    }
-    
-    private fun loadUser(userId: String) {
-        coroutineScope.launch {
-            updateState { copy(isLoading = true, error = null) }
-            try {
-                val user = userRepository.getUser(userId)
-                updateState { 
-                    copy(
-                        userId = user.id,
-                        username = user.username,
-                        email = user.email,
-                        isLoading = false
-                    ) 
-                }
-            } catch (e: Exception) {
-                updateState { copy(isLoading = false, error = e.message) }
-            }
+            is UserDataIntent.UpdateUsername -> updateUsername(intent.username)
+            is UserDataIntent.UpdateEmail -> updateEmail(intent.email)
         }
     }
     
@@ -623,82 +509,51 @@ class UserModule(
 }
 ```
 
-### 创建ViewModel
-
-ViewModel负责协调各个状态模块，处理主意图，并管理事件。
+### 3. 创建ViewModel
 
 ```kotlin
-class AppViewModel : ModularMviViewModel<AppState, AppIntent, AppEvent>(AppState()) {
+class MainViewModel : ModularMviViewModel<MainState, MainIntent, MainEvent>(MainState()) {
     
-    private val userModule: UserModule
-    private val settingsModule: SettingsModule
-    private val contentModule: ContentModule
+    private val userDataModule = UserDataModule(UserDataState(), viewModelScope)
+    private val otherModule = OtherModule(OtherState(), viewModelScope)
     
     init {
-        // 注册用户模块
-        userModule = registerModule(
-            stateSelector = { it.userInfo },
-            stateUpdater = { state, userInfo -> state.copy(userInfo = userInfo) },
-            moduleFactory = { stateFlow, selector, updater, scope ->
-                UserModule(stateFlow, selector, updater, scope, userRepository)
-            }
-        )
+        // 注册模块
+        registerModule(userDataModule) { state, moduleState ->
+            state.copy(userData = moduleState)
+        }
         
-        // 注册设置模块
-        settingsModule = registerModule(
-            stateSelector = { it.settings },
-            stateUpdater = { state, settings -> state.copy(settings = settings) },
-            moduleFactory = { stateFlow, selector, updater, scope ->
-                SettingsModule(stateFlow, selector, updater, scope)
-            }
-        )
-        
-        // 注册内容模块
-        contentModule = registerModule(
-            stateSelector = { it.content },
-            stateUpdater = { state, content -> state.copy(content = content) },
-            moduleFactory = { stateFlow, selector, updater, scope ->
-                ContentModule(stateFlow, selector, updater, scope, contentRepository)
-            }
-        )
-        
-        // 监听错误
-        viewModelScope.launch {
-            observe { it.userInfo.error }.collect { error ->
-                error?.let { sendEvent(AppEvent.ShowError(it)) }
-            }
+        registerModule(otherModule) { state, moduleState ->
+            state.copy(otherState = moduleState)
         }
     }
     
-    override fun handleIntent(intent: AppIntent) {
+    override fun handleIntent(intent: MainIntent) {
         when (intent) {
-            is AppIntent.UserIntent -> userModule.handleIntent(intent.intent)
-            is AppIntent.SettingsIntent -> settingsModule.handleIntent(intent.intent)
-            is AppIntent.ContentIntent -> contentModule.handleIntent(intent.intent)
+            is MainIntent.UserDataIntent -> userDataModule.handleIntent(intent.intent)
+            is MainIntent.OtherIntent -> otherModule.handleIntent(intent.intent)
         }
     }
 }
 ```
 
-### 在传统View中使用
-
-在Fragment或Activity中使用MVI框架，需要实现`MviView`接口。
+### 4. 在View中使用
 
 ```kotlin
 class MainFragment : Fragment(), MviView {
     
-    private val viewModel: AppViewModel by viewModels()
+    private val viewModel: MainViewModel by viewModels()
     
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
         // 使用状态选择器观察特定状态
-        viewModel.observeState({ it.userInfo.username }) { username ->
+        viewModel.observeState({ it.userData.username }) { username ->
             usernameTextView.text = username
         }
         
         // 使用状态路径观察深层状态
-        val loadingPath = { state: AppState -> state.userInfo.isLoading }.asPath()
+        val loadingPath = { state: MainState -> state.userData.isLoading }.asPath()
         viewModel.observeState(loadingPath) { isLoading ->
             loadingProgressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
         }
@@ -706,10 +561,7 @@ class MainFragment : Fragment(), MviView {
         // 观察事件
         viewModel.observeEvents { event ->
             when (event) {
-                is AppEvent.ShowError -> {
-                    Toast.makeText(requireContext(), event.message, Toast.LENGTH_SHORT).show()
-                }
-                is AppEvent.ShowSuccess -> {
+                is MainEvent.ShowError -> {
                     Toast.makeText(requireContext(), event.message, Toast.LENGTH_SHORT).show()
                 }
             }
@@ -718,8 +570,8 @@ class MainFragment : Fragment(), MviView {
         // 发送意图
         updateButton.setOnClickListener {
             viewModel.sendIntent(
-                AppIntent.UserIntent(
-                    UserIntent.UpdateUsername(usernameEditText.text.toString())
+                MainIntent.UserDataIntent(
+                    UserDataIntent.UpdateUsername("新用户名")
                 )
             )
         }
@@ -727,66 +579,44 @@ class MainFragment : Fragment(), MviView {
 }
 ```
 
-### 在Compose中使用
-
-在Jetpack Compose中使用MVI框架，可以使用提供的扩展函数。
+### 5. 在Compose中使用
 
 ```kotlin
 @Composable
-fun MainScreen(viewModel: AppViewModel) {
+fun MainScreen(viewModel: MainViewModel) {
     // 收集状态
-    val username by viewModel.collectAsState { it.userInfo.username }
-    val theme by viewModel.collectAsState { it.settings.theme }
-    val isLoading by viewModel.collectAsState { it.userInfo.isLoading }
-    val items by viewModel.collectAsState { it.content.items }
+    val username by viewModel.collectAsState { it.userData.username }
+    val isLoading by viewModel.collectAsState { it.userData.isLoading }
     
     // 处理事件
     LaunchedEffect(viewModel) {
         viewModel.eventFlow.collect { event ->
             when (event) {
-                is AppEvent.ShowError -> {
+                is MainEvent.ShowError -> {
                     // 显示错误
-                }
-                is AppEvent.ShowSuccess -> {
-                    // 显示成功
                 }
             }
         }
     }
     
     // UI
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("应用") }
-            )
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-            ) {
-                Text("用户名: $username")
-                Text("主题: $theme")
-                
-                Button(
-                    onClick = {
-                        viewModel.sendIntent(
-                            AppIntent.UserIntent(
-                                UserIntent.UpdateUsername("新用户名")
-                            )
-                        )
-                    }
-                ) {
-                    Text("更新用户名")
-                }
+    Column {
+        Text("用户名: $username")
+        
+        Button(
+            onClick = {
+                viewModel.sendIntent(
+                    MainIntent.UserDataIntent(
+                        UserDataIntent.UpdateUsername("新用户名")
+                    )
+                )
             }
+        ) {
+            Text("更新用户名")
+        }
+        
+        if (isLoading) {
+            CircularProgressIndicator()
         }
     }
 }
